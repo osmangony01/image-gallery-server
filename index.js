@@ -53,7 +53,23 @@ const upload = multer({
     }
 });
 
+// get image route for image read
+app.get('/image', (req, res) => {
 
+    const { img } = req.query;
+    const filename = path.join(__dirname, 'upload', img);
+
+    try {
+        if (fs.existsSync(filename)) {
+            res.status(200).sendFile(filename);
+        } else {
+            res.status(404).send('File not found');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).send('Server error');
+    }
+})
 
 
 async function run() {
@@ -63,9 +79,6 @@ async function run() {
         // Send a ping to confirm a successful connection
 
         const imageCollection = client.db("taskManagement").collection("imageGallery");
-
-
-
 
         // upload images route
         app.post('/upload-images', upload.array('files', 10), async (req, res) => {
@@ -96,6 +109,16 @@ async function run() {
             }
         });
 
+        // get images route for fetch data from mongodb
+        app.get('/images', async (req, res) => {
+            try {
+                const data = await imageCollection.find().toArray();;
+                res.status(200).send(data);
+            }
+            catch (error) {
+                res.status(500).send(error.message)
+            }
+        })
        
 
 
