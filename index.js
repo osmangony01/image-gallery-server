@@ -71,6 +71,21 @@ app.get('/image', (req, res) => {
     }
 })
 
+// handle to delete file
+const deleteFiles = (files) => {
+    
+    files.forEach((file) => {
+        const filePath = UPLOAD_FOLDER + "/" + file;
+        console.log(filePath);
+        fs.unlink(filePath, (err) => {
+            if (err) {
+                console.error(`Error deleting ${filePath}:`, err);
+            } else {
+                console.log(`${filePath} deleted successfully`);
+            }
+        });
+    });
+}
 
 async function run() {
     try {
@@ -118,7 +133,42 @@ async function run() {
             catch (error) {
                 res.status(500).send(error.message)
             }
-        })
+        });
+
+        // delete images route
+        app.delete('/delete-images', async (req, res) => {
+
+            const selectedImages = req.body;
+            console.log(selectedImages);
+
+            // extract id and images as array to delete
+            const extractedImages = selectedImages.map(obj => obj.image);
+            const extractedIds = selectedImages.map(obj => obj._id);
+
+            // Create an array of ObjectIds from the _id values to be deleted
+            const ObjectIdsToDelete = extractedIds.map(_id => new ObjectId(_id));
+
+            console.log(ObjectIdsToDelete);
+
+            deleteFiles(extractedImages);
+
+            try {
+                // Delete the documents with matching _id values
+                const result = await imageCollection.deleteMany({ _id: { $in: ObjectIdsToDelete } });
+                res.status(201).json({
+                    ok: true,
+                    deletedCount: result.deletedCount,
+                    message: 'Deleted image successfully',
+                })
+            }
+            catch (error) {
+                res.status(500).json({
+                    ok: false,
+                    message: 'Failed to delete image'
+                })
+            }
+
+        });
        
 
 
