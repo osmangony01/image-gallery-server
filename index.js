@@ -3,9 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config()
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -28,64 +26,6 @@ const client = new MongoClient(uri, {
     }
 });
 
-// image upload code
-
-const UPLOAD_FOLDER = path.join(__dirname, 'upload');
-
-const storage = multer.diskStorage({
-
-    destination: function (req, file, cb) {
-        cb(null, UPLOAD_FOLDER);
-    },
-
-    filename: function (req, file, cb) {
-        const fileExt = path.extname(file.originalname);
-        const filename = file.originalname.replace(fileExt, "").toLocaleLowerCase().split(" ").join("-") + "-" + Date.now();
-        cb(null, filename + fileExt);
-    }
-})
-
-const upload = multer({
-    storage: storage,
-    fileFilter: (req, file, cb) => {
-        console.log(file)
-        cb(null, true)
-    }
-});
-
-// get image route for image read
-app.get('/image', (req, res) => {
-
-    const { img } = req.query;
-    const filename = path.join(__dirname, 'upload', img);
-
-    try {
-        if (fs.existsSync(filename)) {
-            res.status(200).sendFile(filename);
-        } else {
-            res.status(404).send('File not found');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        res.status(500).send('Server error');
-    }
-})
-
-// handle to delete file
-const deleteFiles = (files) => {
-    
-    files.forEach((file) => {
-        const filePath = UPLOAD_FOLDER + "/" + file;
-        console.log(filePath);
-        fs.unlink(filePath, (err) => {
-            if (err) {
-                console.error(`Error deleting ${filePath}:`, err);
-            } else {
-                console.log(`${filePath} deleted successfully`);
-            }
-        });
-    });
-}
 
 async function run() {
     try {
@@ -96,18 +36,17 @@ async function run() {
         const imageCollection = client.db("taskManagement").collection("imageGallery");
 
         // upload images route
-        app.post('/upload-images', upload.array('files', 10), async (req, res) => {
+        app.post('/upload-images',  async (req, res) => {
 
-            console.log('hitted')
-            console.log(req.files)
-            const files = req.files;
-            const images = files.map((file) => {
-                const ob = { "image": file.filename };
+            //console.log(req.files)
+            const {imgData} = req.body;
+            //const files = req.body;
+            //console.log(imgData)
+            const images = imgData.map((file) => {
+                const ob = { "image": file };
                 return ob;
             });
-
-            console.log(images)
-            //console.log(req.body)
+            //console.log(images)
 
             try {
                 const result = await imageCollection.insertMany(images);
@@ -139,18 +78,14 @@ async function run() {
         app.delete('/delete-images', async (req, res) => {
 
             const selectedImages = req.body;
-            console.log(selectedImages);
+            //console.log(selectedImages);
 
-            // extract id and images as array to delete
-            const extractedImages = selectedImages.map(obj => obj.image);
+            // extract ids for deleting
             const extractedIds = selectedImages.map(obj => obj._id);
 
             // Create an array of ObjectIds from the _id values to be deleted
             const ObjectIdsToDelete = extractedIds.map(_id => new ObjectId(_id));
-
-            console.log(ObjectIdsToDelete);
-
-            deleteFiles(extractedImages);
+            //console.log(ObjectIdsToDelete);
 
             try {
                 // Delete the documents with matching _id values
@@ -167,10 +102,7 @@ async function run() {
                     message: 'Failed to delete image'
                 })
             }
-
         });
-       
-
 
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
